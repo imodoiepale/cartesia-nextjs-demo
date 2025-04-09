@@ -2,7 +2,13 @@ This is a [Cartesia](https://cartesia.ai) webapp demo using [Next.js](https://ne
 
 ## Getting Started
 
-First, install packages:
+First, [get a Cartesia API Key](https://play.cartesia.ai/keys) and add it to `.env.local`:
+
+```
+CARTESIA_API_KEY=<your-api-key>
+```
+
+Then, install packages:
 
 ```bash
 npm install
