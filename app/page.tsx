@@ -1,103 +1,114 @@
-import Image from "next/image";
+"use client";
+import { CartesiaClient, WebPlayer } from "@cartesia/cartesia-js";
+import { useCallback, useRef, useState } from "react";
+import clsx from "clsx";
+import { twMerge } from "tailwind-merge";
+import { ClassValue } from "clsx";
+
+
+//////////////////////////////////
+// UI Utilities
+//////////////////////////////////
+function cn(...classLists: ClassValue[]) {
+  return twMerge(clsx(classLists))
+}
+
+function Button({ children, onClick, disabled }: React.ComponentProps<"button">) {
+  return (
+    <button
+      className={cn(
+        "group flex h-8 items-center justify-center rounded-md border bg-gradient-to-b px-4 text-neutral-50 ",
+        disabled
+          ? "border-gray-300 bg-gray-300 text-gray-400"
+          : "border-blue-600 from-blue-400 via-blue-500 to-blue-600 hover:from-blue-600 hover:via-blue-600 hover:to-blue-600 shadow-[inset_0_1px_0px_0px_#93c5fd] active:[box-shadow:none]"
+      )}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <span className="block group-active:[transform:translate3d(0,1px,0)]">{children}</span>
+    </button>
+  )
+}
+
+//////////////////////////////////
+// Main
+//////////////////////////////////
+type ConnectionState = "idle" | "fetching-token" | "connecting" | "ready" | "disconnected";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const websocketRef = useRef<ReturnType<typeof CartesiaClient.prototype.tts.websocket> | null>(null);
+  const [connectionState, setConnectionState] = useState<ConnectionState>("idle");
+  const [playerState, setPlayerState] = useState<"idle" | "playing">("idle");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
+  const [script, setScript] = useState("");
+
+  const connect = useCallback(async () => {
+    setConnectionState("fetching-token");
+    const res = await fetch('/get-token');
+    const data = await res.json();
+    setConnectionState("connecting");
+    const cartesia = new CartesiaClient();
+    websocketRef.current = cartesia.tts.websocket({
+      container: "raw",
+      encoding: "pcm_f32le",
+      sampleRate: 44100,
+    });
+    const ctx = await websocketRef.current?.connect({
+      accessToken: data.token,
+    });
+    setConnectionState("ready");
+    ctx.on("close", () => {
+      setConnectionState("disconnected");
+      websocketRef.current = null;
+    });
+  }, []);
+
+  const speak = useCallback(async () => {
+    const ctx = websocketRef.current;
+    if (!ctx) {
+      console.error("Not connected");
+      return;
+    }
+    const resp = await ctx.send({
+      modelId: "sonic-2",
+      voice: {
+        mode: "id",
+        id: "694f9389-aac1-45b6-b726-9d9369183238",
+      },
+      language: "en",
+      transcript: script,
+    });
+    const player = new WebPlayer({ bufferDuration: 600 });
+    setPlayerState("playing");
+    await player.play(resp.source);
+    setPlayerState("idle");
+  }, [script]);
+
+  return (
+    <div className="flex flex-col items-center justify-center h-screen gap-4 max-w-screen-sm mx-auto">
+      <div className="w-full h-8 flex justify-left items-center gap-2">
+        {(connectionState === "idle" || connectionState === "disconnected") && <Button onClick={connect}>Connect</Button>}
+        <div className="px-1 text-gray-700">
+          {connectionState === "fetching-token" && "Fetching token..."}
+          {connectionState === "connecting" && "Connecting..."}
+          {connectionState === "ready" && "Ready!"}
+          {connectionState === "disconnected" && "Disconnected - Cartesia disconnects websockets after 5 min of inactivity"}
+        </div>
+      </div>
+      <div className="w-full">
+        <textarea className="w-full border-1 border-gray-400 rounded-md p-2" value={script} onChange={(e) => setScript(e.target.value)} />
+        <div className="w-full flex justify-between items-center">
+          <Button disabled={connectionState !== "ready" || playerState === "playing"} onClick={speak}>Speak</Button>
           <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+            className="flex gap-2 text-blue-700 hover:text-blue-500"
+            href="https://docs.cartesia.ai/"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
+            More info on docs.cartesia.ai →
           </a>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
 }
