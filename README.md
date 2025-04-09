@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a [Cartesia](https://cartesia.ai) webapp demo using [Next.js](https://nextjs.org), showing how to do text-to-speech (TTS) in the browser-based client.
 
 ## Getting Started
 
-First, run the development server:
+First, install packages:
+
+```bash
+npm install
+# or
+pnpm install
+```
+
+Then run the development server:
 
 ```bash
 npm run dev
 # or
-yarn dev
-# or
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the app. Click `Connect`, type some text to read out, then click `Speak` (and make sure your device is not muted).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How it works
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Roughly:
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. The demo client initiates the flow by requesting an Access Token from the demo server
+2. The demo server uses its API Key to authenticate with the Cartesia API
+3. After receiving the Access Token, it's passed back to the client
+4. The client establishes a WebSocket connection with the Cartesia API using this token
+5. Once connected, the client sends its TTS request over the WebSocket
+6. The Cartesia API streams back the generated audio data
+7. The client processes and plays the audio as it arrives using WebPlayer
